@@ -244,7 +244,7 @@
         if (album)
             data += "&album=" + encodedAlbum;
         if (albumArtist)
-            data += "&albumartist=" + encodedAlbumArtist;
+            data += "&albumArtist=" + encodedAlbumArtist;
 
         if (mainItemsSame)
             trackinfo.querySelector(".more-item--delete").click();
