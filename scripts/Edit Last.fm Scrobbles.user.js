@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Edit Last.fm Scrobbles
-// @version      0.5.0
+// @version      0.6.0
 // @description  Adds an "Edit scrobble" entry to the context menu of Last.fm
 // @author       CennoxX
 // @namespace    https://greasyfork.org/users/21515
@@ -68,8 +68,7 @@
         var observer = new MutationObserver(mutations => {
             if ((mutations?.[0]?.addedNodes?.[0]?.tagName == "TR") || oldChartlist != document.querySelector(".chartlist")) {
                 oldChartlist = document.querySelector(".chartlist");
-                if (!document.querySelector(".edit-selected-scrobbles-btn"))
-                    main();
+                addEditButtonToMenu();
             }
         });
         observer.observe(document.querySelector("body"), { childList: true, subtree: true });
@@ -81,17 +80,20 @@
             var fourteenDaysAgo = new Date().getTime() - (14 * 24 * 60 * 60 * 1000);
             if ((menu.querySelector('[name="timestamp"]')?.value ?? 0) * 1000 < fourteenDaysAgo)
                 return;
-            var listItem = document.createElement("li");
-            var editButton = document.createElement("button");
-            var editIcon = document.createElement("img");
-            editButton.className = "mimic-link dropdown-menu-clickable-item edit-selected-scrobbles-btn";
+            var editButton = menu.querySelector(".edit-selected-scrobbles-btn");
+            if (!editButton) {
+                var listItem = document.createElement("li");
+                var editIcon = document.createElement("img");
+                editButton = document.createElement("button");
+                editButton.className = "mimic-link dropdown-menu-clickable-item edit-selected-scrobbles-btn";
+                editIcon.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABQElEQVQ4T5WSMS9EQRRGdxOFYolCI/EDlCQKjYROo1NQSAii1SusSqsTUVDQKRSKFRKFQkm5BZ2eQqHjnJc7ycvbeSv7kpM3c2e+796Zuc3GYN8k27dgGq7gujmAfoq9jzAMXZiDTQ3G4AhWY5w8XxnMxCSJ3WtMg3toaXAC23ABH6WK3hlfQlls9mM4hSfoaPDpWWAnc5wkdmkRdmEPfuAL5jX4hTYcVgyqYss29hJiDbt1BgssHsBo/G/5p5j3YLIbE+YMhog/g09WZInMvoBfihWTnIHPo8E6lC+xR1xnYOltmAAb5rySeYX5PhRPnKvA7LPgTbfgDZbjKGpSgqIJ6wzGWevAHTyEWRTyv0HaWPfvqaBfI+VMzgja9iPpCLbyBnjj5VbOiX1axfbFWjKwMXRdikvrd4TvENv2jht/CXpR/3sr35MAAAAASUVORK5CYII=";
+                editIcon.style = "padding-right: 14px;";
+                editButton.appendChild(editIcon);
+                editButton.appendChild(document.createTextNode("Edit scrobble"));
+                listItem.appendChild(editButton);
+                menu.insertBefore(listItem, menu.firstChild);
+            }
             editButton.addEventListener("click", addInput);
-            editIcon.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABQElEQVQ4T5WSMS9EQRRGdxOFYolCI/EDlCQKjYROo1NQSAii1SusSqsTUVDQKRSKFRKFQkm5BZ2eQqHjnJc7ycvbeSv7kpM3c2e+796Zuc3GYN8k27dgGq7gujmAfoq9jzAMXZiDTQ3G4AhWY5w8XxnMxCSJ3WtMg3toaXAC23ABH6WK3hlfQlls9mM4hSfoaPDpWWAnc5wkdmkRdmEPfuAL5jX4hTYcVgyqYss29hJiDbt1BgssHsBo/G/5p5j3YLIbE+YMhog/g09WZInMvoBfihWTnIHPo8E6lC+xR1xnYOltmAAb5rySeYX5PhRPnKvA7LPgTbfgDZbjKGpSgqIJ6wzGWevAHTyEWRTyv0HaWPfvqaBfI+VMzgja9iPpCLbyBnjj5VbOiX1axfbFWjKwMXRdikvrd4TvENv2jht/CXpR/3sr35MAAAAASUVORK5CYII=";
-            editIcon.style = "padding-right: 14px;";
-            editButton.appendChild(editIcon);
-            editButton.appendChild(document.createTextNode("Edit scrobble"));
-            listItem.appendChild(editButton);
-            menu.insertBefore(listItem, menu.firstChild);
         });
     }
 
@@ -101,15 +103,27 @@
 
         var track = trackinfo.querySelector(".chartlist-name > a")?.title || "";
         var artist = trackinfo.querySelector(".chartlist-artist > a")?.title || "";
-        var timestamp = trackinfo.querySelector('[name="timestamp"]')?.value || "";
+        if (!artist) {
+            var artistUrlParts = trackinfo.querySelector(".chartlist-album > a")?.href.split("/");
+            var artistUrlPart = artistUrlParts?.[artistUrlParts.indexOf("music") + 1];
+            if (artistUrlPart)
+                artist = escapeHref(artistUrlPart);
+        }
 
-        showEditModal(trackinfo, track, artist, "Loading...", "Loading...", timestamp);
-        fetchScrobbleInfo(artist, track, timestamp, (scrobbleInfo) => {
-            var modal = document.querySelector(".modal-album-input")?.closest("div").parentNode;
-            if (!modal) return;
-            modal.querySelector(".modal-album-input").value = scrobbleInfo.album || "";
-            modal.querySelector(".modal-albumartist-input").value = scrobbleInfo.albumArtist || "";
-        });
+        var album = trackinfo.querySelector(".chartlist-album > a")?.title || "";
+        if (!album) {
+            var coverUrl = trackinfo.querySelector(".cover-art")?.href.split("/")?.pop();
+            if (coverUrl)
+                album = escapeHref(coverUrl);
+        }
+
+        var albumArtistUrlParts = trackinfo.querySelector(".cover-art,.chartlist-album > a")?.href.split("/");
+        var albumArtistUrlPart = albumArtistUrlParts?.[albumArtistUrlParts.indexOf("music") + 1] ?? "";
+        var albumArtistParams = new URLSearchParams(`q=${albumArtistUrlPart}`);
+        var albumArtist = albumArtistParams.get("q");
+
+        var timestamp = trackinfo.querySelector('[name="timestamp"]')?.value || "";
+        showEditModal(trackinfo, track, artist, album, albumArtist, timestamp);
     }
 
     function escapeHtml(text) {
@@ -118,40 +132,9 @@
         return div.innerHTML.replace(/"/g, "&quot;");
     }
 
-    function fetchScrobbleInfo(artist, track, timestamp, callback) {
-        var from = Number(timestamp) - 1;
-        var to = Number(timestamp) + 1;
-        var data = "api_key=" + api_key + "&sk=" + sessionKey + "&method=user.getRecentTracks" + "&user=" + encodeURIComponent(username) + "&from=" + from + "&to=" + to + "&limit=5";
-        data = data + "&api_sig=" + lfmmd5(data) + "&format=json";
-        GM.xmlHttpRequest({
-            method: "GET",
-            url: "https://ws.audioscrobbler.com/2.0/?" + data + "&format=json",
-            onload: function(response) {
-                var result = { album: "", albumArtist: "" };
-                try {
-                    var json = JSON.parse(response.responseText);
-                    var tracks = json?.recenttracks?.track || [];
-                    if (!Array.isArray(tracks)) {
-                        tracks = [tracks];
-                    }
-                    var match = tracks.find(t => t.name?.toLowerCase() === track.toLowerCase() &&
-                                            t.artist?.["#text"]?.toLowerCase() === artist.toLowerCase() &&
-                                            String(t.date?.uts) === String(timestamp));
-                    if (match) {
-                        result.album = match.album?.["#text"] || "";
-                        result.albumArtist = match.artist?.["#text"] || "";
-                    }
-                } catch (e) {
-                    console.error("Error parsing recent tracks: " + e);
-                }
-
-                callback(result);
-            },
-            onerror: function(response) {
-                console.error("Error fetching recent tracks: " + response.responseText);
-                callback({ album: "", albumArtist: "" });
-            }
-        });
+    function escapeHref(text) {
+        var params = new URLSearchParams(`q=${text}`);
+        return params.get("q");
     }
 
     function showEditModal(trackinfo, track, artist, album, albumArtist, timestamp) {
@@ -258,7 +241,7 @@
                     if (response.responseText.length > 0 && response.responseText.includes('<lfm status="ok">')) {
                         if (!mainItemsSame)
                             trackinfo.querySelector(".more-item--delete").click();
-                        setTimeout(function() {location.reload()}, 300);
+                        setTimeout(function() {location.reload()}, 700);
                     }
                     else if (response.responseText.includes('<error code="9">'))
                     {
