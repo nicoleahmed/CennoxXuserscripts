@@ -112,12 +112,12 @@
 
         var album = trackinfo.querySelector(".chartlist-album > a")?.title || "";
         if (!album) {
-            var coverUrl = trackinfo.querySelector(".cover-art")?.href.split("/")?.pop();
+            var coverUrl = trackinfo.querySelector(".cover-art")?.href?.split("/")?.pop();
             if (coverUrl)
                 album = escapeHref(coverUrl);
         }
 
-        var albumArtistUrlParts = trackinfo.querySelector(".cover-art,.chartlist-album > a")?.href.split("/");
+        var albumArtistUrlParts = trackinfo.querySelector(".cover-art,.chartlist-album > a")?.href?.split("/");
         var albumArtistUrlPart = albumArtistUrlParts?.[albumArtistUrlParts.indexOf("music") + 1] ?? "";
         var albumArtistParams = new URLSearchParams(`q=${albumArtistUrlPart}`);
         var albumArtist = albumArtistParams.get("q");
