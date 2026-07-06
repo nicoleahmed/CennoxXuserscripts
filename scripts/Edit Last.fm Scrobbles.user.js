@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Edit Last.fm Scrobbles
-// @version      0.6.0
+// @version      0.6.1
 // @description  Adds an "Edit scrobble" entry to the context menu of Last.fm
 // @author       CennoxX
 // @namespace    https://greasyfork.org/users/21515
